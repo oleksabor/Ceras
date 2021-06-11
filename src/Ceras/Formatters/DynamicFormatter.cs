@@ -20,6 +20,10 @@ namespace Ceras.Formatters
 	abstract class DynamicFormatter
 	{
 		internal abstract void Initialize();
+		
+		public static Action<List<Expression>, SchemaMember, ParameterExpression, MethodCallExpression, MethodCallExpression> SerializerNestedInjector;
+		public static Action<List<Expression>, SchemaMember, ParameterExpression, ParameterExpression> DeserializerNestedInjector;
+
 	}
 
 	sealed class DynamicFormatter<T> : DynamicFormatter, IFormatter<T>
@@ -127,11 +131,15 @@ namespace Ceras.Formatters
 
 				// Prepare the actual serialize call
 				var serializeCall = Call(formatterExp, serializeMethod, refBufferArg, refOffsetArg, MakeMemberAccess(valueArg, member.MemberInfo));
+				var serializeNullCall = Call(formatterExp, serializeMethod, refBufferArg, refOffsetArg, Convert(Constant(null), member.MemberType));
 
 
 				// Call "Serialize"
 				if (!isSchemaFormatter)
 				{
+					if (SerializerNestedInjector != null)
+						SerializerNestedInjector(body, member, valueArg, serializeCall, serializeNullCall);
+					else
 					body.Add(serializeCall);
 				}
 				else
@@ -144,6 +152,9 @@ namespace Ceras.Formatters
 					// offset += 4;
 					body.Add(AddAssign(refOffsetArg, Constant(FieldSizePrefixBytes)));
 
+					if (SerializerNestedInjector != null)
+						SerializerNestedInjector(body, member, valueArg, serializeCall, serializeNullCall);
+					else
 					// Serialize(...) write the actual data
 					body.Add(serializeCall);
 
@@ -274,6 +285,10 @@ namespace Ceras.Formatters
 
 				// Init the local with the current value
 				var local = memberInfoToLocal[m.MemberInfo];
+
+				if (DeserializerNestedInjector != null)
+					DeserializerNestedInjector(body, m, refValueArg, local);
+				else
 				body.Add(Assign(local, MakeMemberAccess(refValueArg, m.MemberInfo)));
 			}
 
