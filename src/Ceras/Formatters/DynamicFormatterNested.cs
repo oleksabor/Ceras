@@ -13,9 +13,15 @@ namespace Ceras.Formatters
 	using System.Reflection;
 	using static System.Linq.Expressions.Expression;
 
-	class DynamicFormatterNested
+	public class DynamicFormatterNested
 	{
 		static ConcurrentDictionary<string, FieldInfo> fields = new ConcurrentDictionary<string, FieldInfo>();
+
+		public static void Inject()
+		{
+			DynamicFormatter.SerializerNestedInjector = InjectToSerializer;
+			DynamicFormatter.DeserializerNestedInjector = InjectToDeserializer;
+		}
 
 		static Expression HasInnerFieldData(ParameterExpression value, MemberInfo pi)
 		{
@@ -33,7 +39,7 @@ namespace Ceras.Formatters
 			return field;
 		}
 
-		public static void InjectToSerializer(List<Expression> body, SchemaMember member, ParameterExpression valueArg, MethodCallExpression serializeCall, MethodCallExpression serializeNullCall)
+		internal static void InjectToSerializer(List<Expression> body, SchemaMember member, ParameterExpression valueArg, MethodCallExpression serializeCall, MethodCallExpression serializeNullCall)
 		{
 			if (RequireNestedCheck(member))
 			{
@@ -60,7 +66,7 @@ namespace Ceras.Formatters
 			return memberType;
 		}
 
-		public static void InjectToDeserializer(List<Expression> body, SchemaMember m, ParameterExpression refValueArg, ParameterExpression local)
+		internal static void InjectToDeserializer(List<Expression> body, SchemaMember m, ParameterExpression refValueArg, ParameterExpression local)
 		{
 			if (RequireNestedCheck(m))
 			{
